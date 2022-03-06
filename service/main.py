@@ -16,32 +16,32 @@ app.mount(path="/metrics", app=metrics_asgi_app)
 
 prediction_counter = PromCounter(name="prediction_counter", documentation="Count of POST calls to prediction")
 model_info_counter = PromCounter(name="model_info_counter", documentation="Count of GET calls to model info")
+score_histogram = Histogram(name='prediction_count_histogram',documentation='Calls to prediction')
+sample_historgram = Histogram(name='sample_histogram',documentation='Calls to prediction without score')
+latency_histogram = Histogram(name='latency_histogram',documentation='latency to prediction')
+    
 
 
 class FeatureVector(BaseModel):
     vector: List[float]
     score: Optional[bool] = None
 
-score_histogram = Histogram(name='prediction_count_histogram',documentation='Calls to prediction')
-sample_historgram = Histogram(name='sample_histogram',documentation='Calls to prediction without score')
-latency_histogram = Histogram(name='latency_histogram',documentation='latency to prediction')
-    
 
 @app.post("/prediction")
 def prediction(vec: FeatureVector):
     prediction_counter.inc()
 
-    score_histogram.observe(3)
-    latency_histogram.observe(3)
-
-
-    retval = clf.predict([vec.vector])
+    with latency_histogram.time():
+        retval = clf.predict([vec.vector])
     retval = int(retval)
     response = {'is_inlier': retval}
     if vec.score:
         score = clf.score_samples([vec.vector])
         score = float(score)
         response['anamoly_score'] = score
+        score_histogram.observe(score)
+    latency_histogram.observe(retval)
+
     return response
 
 @app.get("/model_information")
