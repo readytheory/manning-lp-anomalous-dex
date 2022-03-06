@@ -1,5 +1,6 @@
 from json import dumps
 from typing import Optional, List
+from prometheus_client import make_asgi_app, Counter as PromCounter, Histogram
 
 from fastapi import FastAPI
 from pydantic import BaseModel
@@ -9,12 +10,31 @@ clf = load("model.joblib")
 
 app = FastAPI()
 
+metrics_asgi_app = make_asgi_app()
+
+app.mount(path="/metrics", app=metrics_asgi_app)
+
+prediction_counter = PromCounter(name="prediction_counter", documentation="Count of POST calls to prediction")
+model_info_counter = PromCounter(name="model_info_counter", documentation="Count of GET calls to model info")
+
+
 class FeatureVector(BaseModel):
     vector: List[float]
     score: Optional[bool] = None
 
+score_histogram = Histogram(name='prediction_count_histogram',documentation='Calls to prediction')
+sample_historgram = Histogram(name='sample_histogram',documentation='Calls to prediction without score')
+latency_histogram = Histogram(name='latency_histogram',documentation='latency to prediction')
+    
+
 @app.post("/prediction")
 def prediction(vec: FeatureVector):
+    prediction_counter.inc()
+
+    score_histogram.observe(3)
+    latency_histogram.observe(3)
+
+
     retval = clf.predict([vec.vector])
     retval = int(retval)
     response = {'is_inlier': retval}
@@ -26,6 +46,7 @@ def prediction(vec: FeatureVector):
 
 @app.get("/model_information")
 def model_information():
+    model_info_counter.inc()
     return clf.get_params()
 
 

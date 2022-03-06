@@ -1,6 +1,12 @@
 version: "3"
 
 services:
+  lovoo_dataset:
+    image: levin/lp-service
+    expose:
+      - 7777
+    ports:
+      - "7777:7777"
   prometheus:
     image: prom/prometheus:v2.20.0
     container_name: prometheus
@@ -28,9 +34,6 @@ services:
       - GF_SECURITY_ADMIN_USER=${ADMIN_USER:-admin}
       - GF_SECURITY_ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin}
       - GF_USERS_ALLOW_SIGN_UP=false
-    ports:
-      - "3000:3000"
-
 
   caddy:
     image: stefanprodan/caddy
@@ -43,6 +46,7 @@ services:
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin}
     ports:
       - "9090:9090"
+      - "3000:3000"
 
 volumes:
   prometheus_data: {}
